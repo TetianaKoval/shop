@@ -3,7 +3,7 @@ import cors from 'cors';
 import router from './routes/index.mjs';
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 const HOST = '0.0.0.0'
 
 app.use(cors()); // Cross-Origin Resource Sharing — спільного використання ресурсів між різними джерелами
