@@ -79,6 +79,15 @@ export const deleteSingleProductHandler = async (req, res) => {
           return res.status(404).json({message: 'Товар не знайдено, не можливо видалити'})
         }
 
+        if(productExists.image) {
+          const linkImageDelete = 'public/images/' + productExists.image;
+          try {
+            await fs.unlink(linkImageDelete)
+          } catch (error) {
+            console.error('Фото товару не вдалось видалити:', error)
+          }
+        }
+
         const filteredProducts = products.filter(
             (product) => product.id !== productIdForDelete,
         );

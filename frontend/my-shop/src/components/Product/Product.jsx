@@ -41,9 +41,10 @@ export const Product = ({ product, onDelete, onUpdate, editingProductId, onEditP
             // режим редагування
             <div className="edit-mode">
                 <h3>Редагування: {name}</h3>
-                {product.image && (
-                  <img src={`${API_URL}/images/${product.image}`} alt={product.name} />
-                )}
+                <img
+                  src={product.image ? `${API_URL}/images/${product.image}` : `${API_URL}/images/no-image.jpg`}
+                  alt={product.name}
+                />
                 <input
                     type="text"
                     value={name}
@@ -68,9 +69,10 @@ export const Product = ({ product, onDelete, onUpdate, editingProductId, onEditP
           ) : (
             // статичний режим
             <div className="view-mode">
-                {product.image && (
-                  <img src={`${API_URL}/images/${product.image}`} alt={product.name} />
-                )}
+                <img
+                  src={product.image ? `${API_URL}/images/${product.image}` : `${API_URL}/images/no-image.jpg`}
+                  alt={product.name}
+                />
                 <h3>{product.name}</h3>
                 <p>Price: {product.price} грн.</p>
                 <button onClick={() => onDelete(product.id)}>Видалити</button>
