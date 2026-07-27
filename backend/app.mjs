@@ -1,3 +1,4 @@
+import './env.mjs';
 import express from 'express';
 import cors from 'cors';
 import router from './routes/index.mjs';
