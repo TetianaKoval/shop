@@ -1,13 +1,13 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { pool } from '../db.mjs';
 
 const filePath = path.resolve('products.json');
 
 export const getProductsHandler = async (req, res) => {
     try {
-        const data = await fs.readFile(filePath, 'utf-8');
-        const products = JSON.parse(data);
-        res.status(200).json(products);
+        const data = await pool.query('SELECT * FROM products');
+        res.status(200).json(data.rows);
     } catch (err) {
         console.error('Помилка:', err);
         res.status(500).json({ message: 'Помилка сервера' });
