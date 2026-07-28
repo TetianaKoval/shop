@@ -19,10 +19,6 @@ export const postProductsHandler = async (req, res) => {
   console.log('завантажений файл', req.file)
     try {
         const { name, price } = req.body;
-        const data = await fs.readFile(filePath, 'utf-8');
-
-        const products = JSON.parse(data);
-
         if (!name || name.trim() === '') {
           return res.status(400).json({message: `Назва товару обо'язкова`})
         }
@@ -32,29 +28,30 @@ export const postProductsHandler = async (req, res) => {
         }
 
         // перевірка на дублікати
+        const isDublicate = await pool.query('SELECT * FROM products WHERE LOWER(name) = LOWER($1)', [name]);
 
-        const isDublicate = products.some(product => product.name.toLowerCase() === name.toLowerCase());
-        if(isDublicate) {
+        if(isDublicate.rows.length > 0) {
           return res.status(409).json({message: 'товар з такою назвою вже існує'})
-        }
+        };
 
         const imageName = req.file ? req.file.filename : null;
 
         const newProduct = {
-            id: Date.now(),
             name: name.trim(),
             price: Number(price),
             image: imageName,
         };
-        products.push(newProduct);
 
+        const product = await pool.query('INSERT INTO products (name, price, image) VALUES ($1, $2, $3) RETURNING *', [newProduct.name, newProduct.price, newProduct.image]);
+
+        console.log(product.rows);
+
+        const data = await pool.query('SELECT * FROM products');
         //затримка для перевірки повільної роботи сервера
         const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
         await delay(3000);
 
-        await fs.writeFile(filePath, JSON.stringify(products, null, 2));
-
-        res.status(200).json(products);
+        res.status(200).json(data.rows);
     } catch (error) {
         console.error('Помилка', error);
         res.status(500).json({ message: 'помилка сервера' });
@@ -116,36 +113,29 @@ export const updateSingleProductHandler = async (req, res) => {
       // alert('Будь ласка, введіть числове додатнє значення ціни');
       return res.status(400).json({ message: 'Некоректна ціна' });
     }
-    // читаєм вміст файлу product.json і записуєм у змінну
-    const data = await fs.readFile(filePath, 'utf-8');
-    // перетворюю data, які у вигляді рядка, в js об'єкт
-    let products = JSON.parse(data);
-    
-    //шукаю індекс товару серед продуктів, щоб він співпадав з індексом, що прийшов з параметрів
-    const index = products.findIndex(product => product.id === productId);
-    
-    if (index === -1) {
-      return res.status(404).json({message: 'товар не знайдено'})
+
+    // перевірка на дублікати
+    const isDublicate = await pool.query('SELECT * FROM products WHERE LOWER(name) = LOWER($1) AND id != $2', [name, productId]);
+
+    if(isDublicate.rows.length > 0) {
+      return res.status(409).json({message: 'товар з такою назвою вже існує'})
     };
-    
-    //оновлюєм товар
-    products[index] = {
-      ...products[index], //переносим всі дані з об'єкта товару, які є.
-      name: name || products[index].name, // заміняєм назву товару якщо вона прийшла в запиті
-      price: price !== undefined ? Number(price): products[index].price // перевіряєм ціну. Якщо вона не прийшла і не 0, тобто 0 !== underfined, то тоді заміняєм
-    };
+
+    const data = await pool.query('UPDATE products SET name = $1, price = $2 WHERE id = $3 RETURNING *', [name, price, productId]);
 
     //затримка для перевірки повільної роботи сервера
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
     await delay(3000);
 
-    // записуєм оновлений список у файл
-      await fs.writeFile(filePath, JSON.stringify(products, null, 2));
+    if(data.rows.length === 0){
+      return res.status(404).json({message: 'товар не знайдено'});
+    };
+    // console.log(`товар успішно додано`, data.rows[0])
 
-      res.status(200).json({
-      message: 'товар успішно додано',
-      updatedProduct: products[index],
-      });
+    res.status(200).json({
+    message: 'товар успішно додано',
+    updatedProduct: data.rows[0],
+    });
   } catch (error) {
     console.error('помилка оновлення товару:', error);
     res.status(500).json({message: `помилка сервера: controllers -> productsControllers.mjs -> updateSingleProductHandler ${error}`})

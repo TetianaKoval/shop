@@ -20,28 +20,46 @@
 
 ## Поточний стан проєкту
 
-### Backend (`backend/`, Express 5, порт 5000)
-- `app.mjs` — точка входу: CORS, JSON-парсер, роздача статики з `public/` (фото товарів), роутер.
+- Код на GitHub: github.com/TetianaKoval/shop (публічний)
+- Задеплоєно на Render (демо, дані не постійні на диску — див. фазу 2):
+  - Backend: shop-xtzk.onrender.com
+  - Frontend: shop-1-hmnj.onrender.com
+
+### Backend (`backend/`, Express 5, порт 5000 або `process.env.PORT`)
+- `app.mjs` — точка входу: перший імпорт `./env.mjs` (щоб `.env` гарантовано завантажився до всього іншого), CORS, JSON-парсер, роздача статики з `public/` (фото товарів), роутер.
+- `env.mjs` — викликає `process.loadEnvFile()` (вбудована функція Node 20.6+, без бібліотеки dotenv).
+- `db.mjs` — пул з'єднань PostgreSQL (`pg`), конфіг береться з `.env` (`.env` у `.gitignore`, ніколи не комітиться).
 - `routes/products.mjs` — 5 маршрутів: `GET /products`, `POST /products` (створення, з multer для фото), `GET/PUT/DELETE /products/:id`.
-- `controllers/productsController.mjs` — вся логіка: читає/пише `products.json` напряму (це поки що і є "база даних" — простий файл).
-- `middleware/upload.mjs` — приймає лише png/jpg/jpeg, зберігає в `public/images` з префіксом-таймштампом.
+- `controllers/productsController.mjs` — **у процесі міграції на PostgreSQL** (фаза 2, див. нижче).
+- `middleware/upload.mjs` — приймає лише png/jpg/jpeg, зберігає в `public/images` з префіксом-таймштампом; кодування кириличних назв файлів виправлено через `Buffer.from(originalname, 'latin1').toString('utf8')`.
+- При видаленні товару (`deleteSingleProductHandler`) видаляється і файл фото з диска (`fs.unlink`).
 
 ### Frontend (`frontend/my-shop/`, React + Vite)
-- `App.jsx` — головний компонент: завантажує список товарів при старті, містить усі fetch-функції (add/update/delete), передає їх нижче через пропси.
+- `App.jsx` — головний компонент: завантажує список товарів при старті, `editingProductId`/`productsError` стан тут (піднятий вгору для координації дочірніх компонентів).
 - `Products.jsx` — рендерить список `Product`.
-- `Product.jsx` — картка товару з двома режимами: перегляд і редагування (`isEditing`), власний стан завантаження/помилки на кожній картці.
-- `AddProductForm.jsx` — форма створення товару, зі своїм станом помилки/завантаження.
-- `config.js` — `API_URL` захардкоджений на `http://192.168.0.210:5000` (конкретна IP-адреса в локальній мережі, не localhost).
+- `Product.jsx` — картка товару з двома режимами (перегляд/редагування), фото з заглушкою (`no-image.jpg`), якщо в товару немає власного фото.
+- `AddProductForm.jsx` — форма створення товару; блокується під час редагування іншого товару, під час завантаження, і якщо `productsError` активна.
+- `config.js` — `API_URL` бере `VITE_API_URL` зі змінних середовища (fallback — локальний LAN IP для розробки).
+
+### Локальна PostgreSQL (для розробки)
+- Встановлена локально: `C:\Program Files\PostgreSQL\17\` (psql не в PATH, викликати за повним шляхом).
+- Логін `postgres`, пароль `shop_dev_pass`, база `shopdatabase`, хост `127.0.0.1:5432`.
+- Довідки по SQL/psql-командах: `C:\Tanya\full\learn\db\`.
+- Довідки по Node.js-концепціях (env, import/export): `C:\Tanya\full\learn\node\`.
 
 ### Відомі технічні "борги" (обговорити в майбутніх фазах, не виправляти мовчки)
-- `products.json` замість реальної БД — база даних ще не обрана.
-- Захардкоджений IP в `config.js` замість `localhost` або змінної середовища.
+- Немає превʼю фото при виборі файлу (створення/редагування товару) — низький пріоритет.
 - Немає авторизації/користувачів.
 - Немає кошика й оплати.
 
 ## Дорожня карта (фази)
-1. ✅ Каталог товарів — React-фронт + Node.js API (готово, працює через `products.json`)
-2. 🔜 Підключення справжньої бази даних замість `products.json`
+1. ✅ Каталог товарів — React-фронт + Node.js API (готово)
+2. 🔜 **У процесі**: підключення PostgreSQL замість `products.json`.
+   - ✅ PostgreSQL встановлена, база `shopdatabase` і таблиця `products` створені.
+   - ✅ `pg`, `.env`/`env.mjs`, `db.mjs` (пул з'єднань) готові.
+   - ✅ `getProductsHandler` переписаний на SQL (`SELECT`).
+   - ⏳ Лишилось переписати: `postProductsHandler` (INSERT), `updateSingleProductHandler` (UPDATE), `deleteSingleProductHandler` (DELETE), `getSingleProductHandler`.
+   - Після завершення — перенести реальні дані (не лише тестові рядки) і оновити деплой на Render (додати PostgreSQL-адресу як env-змінну там).
 3. Кошик (перший серйозний досвід зі станом на фронті vs стан на сервері)
 4. Користувачі й авторизація
 5. Замовлення (зв'язок товар–замовлення–користувач)

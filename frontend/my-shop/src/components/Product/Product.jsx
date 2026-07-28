@@ -17,15 +17,15 @@ export const Product = ({ product, onDelete, onUpdate, editingProductId, onEditP
     const finalPrice = price ? Number(price) : 0;
 
     onUpdate(product.id, {name: finalName, price: finalPrice})
-    .then(() =>{
-      setName(finalName);
-      setPrice(finalPrice);
-      onEditProduct(null);
-    })
-    .catch((err) => {
-      setErrorMessage(err.message || 'Сталася помилка при збереженні')
-    })
-    .finally(() => setIsLoading(false))
+      .then(() =>{
+        setName(finalName);
+        setPrice(finalPrice);
+        onEditProduct(null);
+      })
+      .catch((err) => {
+        setErrorMessage(err.message || 'Сталася помилка при збереженні')
+      })
+      .finally(() => setIsLoading(false))
   };
 
   const handleCancel = () => {
