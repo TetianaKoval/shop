@@ -69,11 +69,12 @@ const App = () => {
     };
 
     const handleProductUpdate = (id, updatedData) => {
-      // тут я використовую return для то того, щоб обробляти помилку при відкритій формі редагування у файлі Product.jsx у функції handleSave
+      // тут я використовую return для того, щоб обробляти помилку при відкритій формі редагування у файлі Product.jsx у функції handleSave
       return fetch(`${API_URL}/products/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedData),
+        // headers: { 'Content-Type': 'application/json' },
+        // body: JSON.stringify(updatedData),
+        body: updatedData,
       })
           .then(res => {
              if (res.ok) {

@@ -4,6 +4,8 @@ import { API_URL } from '../../config'
 export const Product = ({ product, onDelete, onUpdate, editingProductId, onEditProduct }) => {
   const [name, setName] = useState(product.name);
   const [price, setPrice] = useState(product.price);
+  const [image, setImage] = useState(null);
+  const [removeImage, setRemoveImage] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
@@ -13,13 +15,29 @@ export const Product = ({ product, onDelete, onUpdate, editingProductId, onEditP
     setIsLoading(true);
     setErrorMessage(null);
 
-    const finalName = name.trim() // || product.name;
+    const finalName = name.trim();
     const finalPrice = price ? Number(price) : 0;
 
-    onUpdate(product.id, {name: finalName, price: finalPrice})
+    // створюю об'єкт форми, щоб передати дані і текст і фото
+     const formData = new FormData();
+
+     formData.append('name', finalName);
+     formData.append('price', finalPrice);
+
+     if(image) {
+      formData.append('image', image);
+     };
+
+     if(removeImage) {
+      formData.append('removeImage', 'true');
+     }
+
+    onUpdate(product.id, formData)
       .then(() =>{
         setName(finalName);
         setPrice(finalPrice);
+        setImage(null);
+        setRemoveImage(false)
         onEditProduct(null);
       })
       .catch((err) => {
@@ -32,7 +50,9 @@ export const Product = ({ product, onDelete, onUpdate, editingProductId, onEditP
     onEditProduct(null);
     setName(product.name);
     setPrice(product.price);
-    setErrorMessage(null)
+    setImage(null);
+    setRemoveImage(false);
+    setErrorMessage(null);
   };
 
     return (
@@ -42,9 +62,30 @@ export const Product = ({ product, onDelete, onUpdate, editingProductId, onEditP
             <div className="edit-mode">
                 <h3>Редагування: {name}</h3>
                 <img
-                  src={product.image ? `${API_URL}/images/${product.image}` : `${API_URL}/images/no-image.jpg`}
+                  src={
+                    removeImage
+                      ? `${API_URL}/images/no-image.jpg`
+                      : image
+                        ? URL.createObjectURL(image)
+                        : (product.image 
+                          ? `${API_URL}/images/${product.image}`
+                          : `${API_URL}/images/no-image.jpg`)
+                  }
                   alt={product.name}
                 />
+                <input
+                    type="file"
+                    accept="image/jpg, image/png, image/jpeg"
+                    onChange={e => setImage(e.target.files[0])}
+                />
+                <label>
+                  <input
+                      type="checkbox"
+                      checked={removeImage}
+                      onChange={e => setRemoveImage(e.target.checked)}
+                  />
+                  Видалити фото
+                </label>
                 <input
                     type="text"
                     value={name}

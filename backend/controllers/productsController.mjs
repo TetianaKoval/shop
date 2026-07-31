@@ -1,8 +1,8 @@
 import fs from 'fs/promises';
-import path from 'path';
+// import path from 'path';
 import { pool } from '../db.mjs';
 
-const filePath = path.resolve('products.json');
+// const filePath = path.resolve('products.json');
 
 export const getProductsHandler = async (req, res) => {
     try {
@@ -66,18 +66,15 @@ export const deleteSingleProductHandler = async (req, res) => {
     // res.send(`Delete single comment with id: ${req.params.productId}`);
     try {
         const productIdForDelete = parseInt(req.params.productId);
-        const data = await fs.readFile(filePath, 'utf-8');
+        // const data = await fs.readFile(filePath, 'utf-8');
+        const data = await pool.query('DELETE FROM products WHERE id = $1 RETURNING *', [productIdForDelete]);
 
-        const products = JSON.parse(data);
-
-        const productExists = products.find(product => product.id === productIdForDelete);
-
-        if (!productExists) {
+        if (data.rows.length === 0) {
           return res.status(404).json({message: 'Товар не знайдено, не можливо видалити'})
         }
 
-        if(productExists.image) {
-          const linkImageDelete = 'public/images/' + productExists.image;
+        if(data.rows[0]) {
+          const linkImageDelete = 'public/images/' + data.rows[0].image;
           try {
             await fs.unlink(linkImageDelete)
           } catch (error) {
@@ -85,12 +82,7 @@ export const deleteSingleProductHandler = async (req, res) => {
           }
         }
 
-        const filteredProducts = products.filter(
-            (product) => product.id !== productIdForDelete,
-        );
-        await fs.writeFile(filePath, JSON.stringify(filteredProducts, null, 2));
-
-        res.status(200).json(filteredProducts);
+        res.status(200).json(data.rows[0]);
     } catch (error) {
         console.error('Помилка', error);
         res.status(500).json({ message: 'помилка сервера' });
@@ -101,8 +93,12 @@ export const updateSingleProductHandler = async (req, res) => {
   try {
     // з параметрів отримуєм ID -> router.put('/:productId', updateSingleProductHandler);
     const productId = Number(req.params.productId);
-    
-    // із тіла запиту отримуєм назву і ціну. Це те що прислав React
+    const currentProduct = await pool.query('SELECT * FROM products WHERE id = $1', [productId]);
+    //якщо поточного товару нема віддаю помилку
+    if(currentProduct.rows.length === 0){
+      return res.status(404).json({message: 'товар не знайдено'});
+    };
+
     const { name, price } = req.body;
 
     if (!name || name.trim() === '') {
@@ -113,7 +109,7 @@ export const updateSingleProductHandler = async (req, res) => {
       // alert('Будь ласка, введіть числове додатнє значення ціни');
       return res.status(400).json({ message: 'Некоректна ціна' });
     }
-
+    
     // перевірка на дублікати
     const isDublicate = await pool.query('SELECT * FROM products WHERE LOWER(name) = LOWER($1) AND id != $2', [name, productId]);
 
@@ -121,15 +117,29 @@ export const updateSingleProductHandler = async (req, res) => {
       return res.status(409).json({message: 'товар з такою назвою вже існує'})
     };
 
-    const data = await pool.query('UPDATE products SET name = $1, price = $2 WHERE id = $3 RETURNING *', [name, price, productId]);
+    const oldImage = currentProduct.rows[0].image;
+    let newImage = oldImage;
+
+    if (req.file && req.body.removeImage !== 'true') {
+      newImage = req.file.filename;
+    } else if (req.body.removeImage === 'true') {
+      newImage = null;
+    };
+
+    if (oldImage && oldImage !== newImage) {
+      try {
+        await fs.unlink('public/images/' + oldImage);
+      } catch (error) {
+        console.error('фото товару не вдалось видалити', error);
+      }
+    }
+
+
+    const data = await pool.query('UPDATE products SET name = $1, price = $2, image = $3 WHERE id = $4 RETURNING *', [name, price, newImage, productId]);
 
     //затримка для перевірки повільної роботи сервера
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
     await delay(3000);
-
-    if(data.rows.length === 0){
-      return res.status(404).json({message: 'товар не знайдено'});
-    };
     // console.log(`товар успішно додано`, data.rows[0])
 
     res.status(200).json({

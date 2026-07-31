@@ -14,6 +14,6 @@ router.get('/', getProductsHandler);
 router.post('/', upload.single('image'), postProductsHandler);
 router.get('/:productId', getSingleProductHandler);
 router.delete('/:productId', deleteSingleProductHandler);
-router.put('/:productId', updateSingleProductHandler);
+router.put('/:productId', upload.single('image'), updateSingleProductHandler);
 
 export default router;
