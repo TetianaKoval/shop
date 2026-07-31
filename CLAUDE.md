@@ -30,15 +30,17 @@
 - `env.mjs` — викликає `process.loadEnvFile()` (вбудована функція Node 20.6+, без бібліотеки dotenv).
 - `db.mjs` — пул з'єднань PostgreSQL (`pg`), конфіг береться з `.env` (`.env` у `.gitignore`, ніколи не комітиться).
 - `routes/products.mjs` — 5 маршрутів: `GET /products`, `POST /products` (створення, з multer для фото), `GET/PUT/DELETE /products/:id`.
-- `controllers/productsController.mjs` — **у процесі міграції на PostgreSQL** (фаза 2, див. нижче).
+- `controllers/productsController.mjs` — **повністю на PostgreSQL** (фаза 2 завершена, усі 4 CRUD-хендлери; `getSingleProductHandler` лишається заглушкою, не використовується). `products.json`/`fs.readFile`/`fs.writeFile` для даних товарів більше не використовуються.
 - `middleware/upload.mjs` — приймає лише png/jpg/jpeg, зберігає в `public/images` з префіксом-таймштампом; кодування кириличних назв файлів виправлено через `Buffer.from(originalname, 'latin1').toString('utf8')`.
-- При видаленні товару (`deleteSingleProductHandler`) видаляється і файл фото з диска (`fs.unlink`).
+- Видалення товару (`deleteSingleProductHandler`) і редагування з заміною/видаленням фото (`updateSingleProductHandler`) видаляють старий файл фото з диска (`fs.unlink`) — важливо не створювати "осиротілі" файли.
+- `PUT /:productId` тепер теж проходить через `upload.single('image')` (як і `POST`) — підтримує заміну/видалення фото при редагуванні через `FormData` (поля `image` і `removeImage`).
 
 ### Frontend (`frontend/my-shop/`, React + Vite)
 - `App.jsx` — головний компонент: завантажує список товарів при старті, `editingProductId`/`productsError` стан тут (піднятий вгору для координації дочірніх компонентів).
 - `Products.jsx` — рендерить список `Product`.
 - `Product.jsx` — картка товару з двома режимами (перегляд/редагування), фото з заглушкою (`no-image.jpg`), якщо в товару немає власного фото.
 - `AddProductForm.jsx` — форма створення товару; блокується під час редагування іншого товару, під час завантаження, і якщо `productsError` активна.
+- Редагування товару підтримує заміну/видалення фото: локальне прев'ю нового фото через `URL.createObjectURL`, чекбокс "Видалити фото" (пріоритетніший за вибір нового файлу — і в UI, і на бекенді).
 - `config.js` — `API_URL` бере `VITE_API_URL` зі змінних середовища (fallback — локальний LAN IP для розробки).
 
 ### Локальна PostgreSQL (для розробки)
@@ -48,18 +50,19 @@
 - Довідки по Node.js-концепціях (env, import/export): `C:\Tanya\full\learn\node\`.
 
 ### Відомі технічні "борги" (обговорити в майбутніх фазах, не виправляти мовчки)
-- Немає превʼю фото при виборі файлу (створення/редагування товару) — низький пріоритет.
+- Немає превʼю фото в `AddProductForm` (тільки при редагуванні вже є) — низький пріоритет.
+- PostgreSQL підключена лише локально — Render деплой ще на старому `products.json`, синхронізувати перед наступним реальним використанням деплою.
 - Немає авторизації/користувачів.
 - Немає кошика й оплати.
 
 ## Дорожня карта (фази)
 1. ✅ Каталог товарів — React-фронт + Node.js API (готово)
-2. 🔜 **У процесі**: підключення PostgreSQL замість `products.json`.
+2. ✅ **Завершено**: підключення PostgreSQL замість `products.json`.
    - ✅ PostgreSQL встановлена, база `shopdatabase` і таблиця `products` створені.
    - ✅ `pg`, `.env`/`env.mjs`, `db.mjs` (пул з'єднань) готові.
-   - ✅ `getProductsHandler` переписаний на SQL (`SELECT`).
-   - ⏳ Лишилось переписати: `postProductsHandler` (INSERT), `updateSingleProductHandler` (UPDATE), `deleteSingleProductHandler` (DELETE), `getSingleProductHandler`.
-   - Після завершення — перенести реальні дані (не лише тестові рядки) і оновити деплой на Render (додати PostgreSQL-адресу як env-змінну там).
+   - ✅ Усі 4 CRUD-хендлери переписані на SQL (`SELECT`/`INSERT`/`UPDATE`/`DELETE`, параметризовані запити, `RETURNING`).
+   - ✅ Заміна/видалення фото при редагуванні товару (наскрізна фіча через увесь стек: React → FormData → multer → fs.unlink → SQL).
+   - ⏳ Лишилось: перенести реальні дані (не лише тестові рядки) і оновити деплой на Render (додати PostgreSQL як env-змінну там — Render теж має безкоштовний PostgreSQL).
 3. Кошик (перший серйозний досвід зі станом на фронті vs стан на сервері)
 4. Користувачі й авторизація
 5. Замовлення (зв'язок товар–замовлення–користувач)
