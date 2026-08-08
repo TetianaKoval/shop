@@ -5,6 +5,7 @@ import './App.scss';
 import { API_URL } from './config'
 import { AddProductForm } from './components/AddProductForm/AddProductForm';
 
+
 const App = () => {
     const [products, setProducts] = useState([]);
     const [editingProductId, setEditingProductId] = useState(null);
@@ -72,8 +73,6 @@ const App = () => {
       // тут я використовую return для того, щоб обробляти помилку при відкритій формі редагування у файлі Product.jsx у функції handleSave
       return fetch(`${API_URL}/products/${id}`, {
         method: 'PUT',
-        // headers: { 'Content-Type': 'application/json' },
-        // body: JSON.stringify(updatedData),
         body: updatedData,
       })
           .then(res => {
